@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Segurança da Informação</title>
+    <!-- Importando a fonte Inter conforme a imagem -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Importando Tailwind CSS para estilização rápida -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Importando Font Awesome para os ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="/img/icon/cyber-crime-_1__1.ico">
+    <link rel="stylesheet" href="/styles/style.css">
+    <script src="/script/script.js" defer></script>
+</head>
+
+<body class="h-screen w-screen overflow-hidden flex flex-col font-sans">
+
+    <header class="bg-brand-primaryDark text-white h-14 flex items-center justify-between px-6 shadow-md z-10">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-shield-halved text-xl"></i>
+            <h1 class="text-lg font-semibold tracking-wide">Treinamento de Segurança HONCORD</h1>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-medium">
+            <span id="score-display" class="bg-black/20 px-3 py-1 rounded-full">Progresso: 0/0</span>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-brand-tertiary flex items-center justify-center">
+                    <i class="fa-solid fa-user text-xs"></i>
+                </div>
+                <span>Colaborador</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+
+        <!-- Sidebar Esquerda (Pastas) -->
+        <aside class="w-64 bg-brand-panel border-r border-gray-200 flex flex-col pt-4">
+            <div class="px-6 mb-6">
+                <button
+                    class="w-full bg-brand-primary text-white font-medium py-2 px-4 rounded shadow hover:bg-brand-primaryDark transition-colors">
+                    Nova Mensagem
+                </button>
+            </div>
+            <nav class="flex-1">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="#"
+                            class="flex items-center gap-3 px-6 py-2 bg-brand-bg text-brand-primaryDark font-semibold border-r-4 border-brand-primary">
+                            <i class="fa-solid fa-inbox w-5"></i>
+                            Caixa de Entrada
+                            <span class="ml-auto bg-brand-primary text-white text-xs py-0.5 px-2 rounded-full"
+                                id="unread-count">0</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#"
+                            class="flex items-center gap-3 px-6 py-2 text-brand-neutral hover:bg-gray-50 transition-colors">
+                            <i class="fa-regular fa-paper-plane w-5"></i>
+                            Itens Enviados
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#"
+                            class="flex items-center gap-3 px-6 py-2 text-brand-neutral hover:bg-gray-50 transition-colors">
+                            <i class="fa-solid fa-shield-virus w-5"></i>
+                            Quarentena (TI)
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <section class="w-80 bg-white border-r border-gray-200 flex flex-col">
+            <div class="p-4 border-b border-gray-200">
+                <div class="relative">
+                    <i
+                        class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" placeholder="Pesquisar..."
+                        class="w-full pl-9 pr-4 py-2 bg-brand-bg border border-gray-200 rounded text-sm focus:outline-none focus:border-brand-tertiary">
+                </div>
+            </div>
+            <!-- Container onde os e-mails serão injetados via JS -->
+            <div id="email-list-container" class="flex-1 overflow-y-auto custom-scrollbar">
+                <!-- Os itens da lista entrarão aqui -->
+            </div>
+        </section>
+
+        <section class="flex-1 bg-white flex flex-col relative">
+
+            <!-- Tela de "Nenhum e-mail selecionado" -->
+            <div id="empty-state"
+                class="absolute inset-0 flex flex-col items-center justify-center text-brand-neutral bg-brand-bg z-20">
+                <i class="fa-regular fa-envelope-open text-6xl mb-4 text-gray-300"></i>
+                <h2 class="text-xl font-medium">Selecione uma mensagem para analisar</h2>
+                <p class="text-sm mt-2">Você precisa decidir se o e-mail é seguro ou uma ameaça.</p>
+            </div>
+
+            <!-- Área de Leitura (Oculta por padrão) -->
+            <div id="reading-pane" class="hidden flex-col h-full">
+                <!-- Barra de Ações (Aprovar / Bloquear) -->
+                <div class="h-16 border-b border-gray-200 flex items-center justify-between px-8 bg-gray-50">
+                    <div class="text-sm font-medium text-brand-neutral">
+                        Análise de Segurança Requerida
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="handleDecision('seguro')"
+                            class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded shadow-sm hover:bg-gray-50 hover:text-green-600 transition-colors">
+                            <i class="fa-solid fa-check text-green-500"></i>
+                            É Seguro
+                        </button>
+                        <button onclick="handleDecision('ameaca')"
+                            class="flex items-center gap-2 px-4 py-2 bg-brand-primaryDark text-white font-medium rounded shadow hover:bg-red-800 transition-colors">
+                            <i class="fa-solid fa-flag"></i>
+                            Reportar Phishing
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cabeçalho do E-mail -->
+                <div class="px-8 py-6 border-b border-gray-100">
+                    <h2 id="email-subject" class="text-2xl font-semibold text-brand-darkest mb-4">Assunto do E-mail</h2>
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-brand-secondary text-white flex items-center justify-center font-bold text-lg"
+                            id="email-avatar">
+                            A
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-baseline gap-2">
+                                <span id="email-sender-name" class="font-bold text-brand-darkest">Nome do
+                                    Remetente</span>
+                                <span id="email-sender-address"
+                                    class="text-sm text-brand-neutral">&lt;email@dominio.com&gt;</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-0.5">Para: mim &lt;colaborador@empresa.com.br&gt;</div>
+                        </div>
+                        <div id="email-date" class="text-sm text-brand-neutral">Agora mesmo</div>
+                    </div>
+                </div>
+
+                <!-- Corpo do E-mail -->
+                <div id="email-body"
+                    class="p-8 text-brand-darkest text-sm leading-relaxed overflow-y-auto custom-scrollbar flex-1 whitespace-pre-wrap">
+                    <!-- Conteúdo injetado via JS -->
+                </div>
+            </div>
+
+            <div id="feedback-modal"
+                class="absolute inset-0 bg-black/60 z-30 hidden flex items-center justify-center backdrop-blur-sm">
+                <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full p-0 overflow-hidden transform scale-95 opacity-0 transition-all duration-300"
+                    id="feedback-content-box">
+
+                    <!-- Cabeçalho do Feedback -->
+                    <div id="feedback-header" class="px-6 py-4 flex items-center gap-3">
+                        <i id="feedback-icon" class="fa-solid fa-circle-check text-2xl"></i>
+                        <h3 id="feedback-title" class="text-xl font-bold">Título do Feedback</h3>
+                    </div>
+
+                    <!-- Corpo do Feedback -->
+                    <div class="p-6">
+                        <p id="feedback-message" class="text-gray-700 mb-6">Mensagem explicando por que o usuário
+                            acertou ou errou, apontando os indícios.</p>
+
+                        <div id="feedback-tip-container"
+                            class="bg-brand-bg border-l-4 border-brand-tertiary p-4 rounded-r text-sm text-brand-darkest">
+                            <span class="font-bold block mb-1">Dica de Segurança:</span>
+                            <span id="feedback-tip">Sempre verifique o domínio do remetente.</span>
+                        </div>
+                    </div>
+
+                    <!-- Rodapé do Feedback -->
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                        <button onclick="nextEmail()"
+                            class="px-6 py-2 bg-brand-primaryDark text-white font-medium rounded shadow hover:bg-brand-primary transition-colors">
+                            Continuar Treinamento
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tela de Conclusão -->
+            <div id="completion-screen"
+                class="absolute inset-0 bg-brand-bg z-40 hidden flex-col items-center justify-center p-8 text-center">
+                <div
+                    class="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6 border-4 border-brand-tertiary">
+                    <i class="fa-solid fa-award text-5xl text-brand-tertiary"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-brand-darkest mb-2">Simulação Concluída!</h2>
+                <p class="text-brand-neutral mb-8 max-w-md">Você finalizou a primeira bateria de testes de segurança da
+                    informação.</p>
+
+                <div class="bg-white p-8 rounded-lg shadow-md max-w-sm w-full mb-8">
+                    <div class="text-5xl font-bold text-brand-primaryDark mb-2" id="final-score-percent">0%</div>
+                    <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Taxa de Acerto</div>
+
+                    <div class="flex justify-between mt-6 text-sm">
+                        <div class="text-green-600 font-bold"><span id="final-correct">0</span> Acertos</div>
+                        <div class="text-red-600 font-bold"><span id="final-wrong">0</span> Erros</div>
+                    </div>
+                </div>
+
+                <button onclick="location.reload()"
+                    class="px-8 py-3 bg-brand-primaryDark text-white font-bold rounded shadow-lg hover:-translate-y-1 transition-transform">
+                    Refazer Treinamento
+                </button>
+            </div>
+
+        </section>
+    </main>
+</body>
+
+</html>
