@@ -1,170 +1,216 @@
-//Configurando a paleta de cores personalizada baseada na imagem enviada
-tailwind.config = {
-    theme: {
-        extend: {
-            fontFamily: {
-                sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-                brand: {
-                    primary: '#D83F3C', // Vermelho principal
-                    primaryDark: '#9A1B1B', // Vermelho escuro (botão primary da imagem)
-                    secondary: '#B85C55', // Telha
-                    tertiary: '#00638D', // Azul
-                    neutral: '#887270', // Marrom/Cinza texto
-                    darkest: '#3a2b2a', // Para textos de maior contraste
-                    bg: '#fcf5f5', // Fundo claro baseado nas caixas
-                    panel: '#ffffff'
-                }
+// ==========================================
+// VARIÁVEIS GLOBAIS E ESTADO DO JOGO
+// ==========================================
+let activeScenarios = [];
+const currentMode = window.location.pathname.includes('msg.html') ? 'chat' : 'email';
+
+let gameState = {
+    email: { index: 0, correct: 0, wrong: 0 },
+    chat: { index: 0, correct: 0, wrong: 0 }
+};
+let gameActive = true;
+let chartInstance = null; // Guarda o gráfico para evitar bugs na hora de recriar
+
+// Limpa cache corrompido de testes anteriores
+if (localStorage.getItem('gameScore')) { localStorage.clear(); }
+
+// ==========================================
+// 1. MEMÓRIA E CONEXÃO COM A API (PYTHON + SQL SERVER)
+// ==========================================
+function saveProgress() {
+    localStorage.setItem('treinamentoState', JSON.stringify(gameState));
+    localStorage.setItem(`scenarios_${currentMode}`, JSON.stringify(activeScenarios));
+}
+
+function loadProgress() {
+    const savedState = localStorage.getItem('treinamentoState');
+    if (savedState) gameState = JSON.parse(savedState);
+}
+
+async function restartGame() {
+    // 1. Zera a pontuação do módulo atual e o cache
+    gameState[currentMode] = { index: 0, correct: 0, wrong: 0 };
+    localStorage.removeItem(`scenarios_${currentMode}`);
+    saveProgress();
+
+    // 2. Destrói o gráfico antigo para não sobrepor
+    if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+    }
+
+    // 3. Esconde a tela final e mostra um estado de "Buscando no Banco..."
+    document.getElementById('completion-screen')?.classList.add('hidden');
+    document.getElementById('completion-screen')?.classList.remove('flex');
+
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) {
+        emptyState.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-brand-neutral">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-brand-primary mb-4"></i>
+            <h2 class="text-xl font-medium">Sorteando novos cenários no banco...</h2>
+        </div>`;
+        emptyState.classList.remove('hidden');
+    }
+
+    // 4. Inicia o jogo novamente puxando da sua API Python sem piscar a tela
+    await initGame();
+}
+
+async function initGame() {
+    checkTutorial();
+    loadProgress();
+
+    // Pinta a aba lateral corretamente
+    document.getElementById('tab-email')?.classList.remove('tab-active');
+    document.getElementById('tab-chat')?.classList.remove('tab-active');
+    document.getElementById(`tab-${currentMode}`)?.classList.add('tab-active');
+
+    const cachedScenarios = localStorage.getItem(`scenarios_${currentMode}`);
+
+    if (cachedScenarios && gameState[currentMode].index > 0) {
+        activeScenarios = JSON.parse(cachedScenarios);
+        renderScenarioList();
+        updateScoreDisplay();
+    } else {
+        try {
+            // Sorteia 3 ameaças aleatórias no banco a cada vez que o jogo é reiniciado
+            const response = await fetch(`http://localhost:8067/api/scenarios/${currentMode}?limit=3`);
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+            const data = await response.json();
+            if (!Array.isArray(data) || data.length === 0) throw new Error("Banco retornou vazio.");
+
+            activeScenarios = data;
+            saveProgress();
+
+            renderScenarioList();
+            updateScoreDisplay();
+        } catch (error) {
+            console.error("Erro na API:", error);
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) {
+                emptyState.innerHTML = `<div class="flex flex-col items-center justify-center p-8 text-center bg-red-50 border border-red-200 rounded-lg w-3/4">
+                    <i class="fa-solid fa-server text-5xl text-red-500 mb-4"></i>
+                    <h2 class="text-2xl font-bold text-red-700 mb-2">Sem Conexão com o Banco</h2>
+                    <p class="text-red-600">Ligue o servidor Python na porta 8067.</p>
+                </div>`;
+                emptyState.classList.remove('hidden');
             }
         }
     }
 }
 
+// ==========================================
+// 2. RENDERIZAÇÃO DA TELA
+// ==========================================
+function renderScenarioList() {
+    const listContainer = document.getElementById('scenario-list-container');
+    if (!listContainer) return;
 
+    listContainer.innerHTML = '';
+    const currentIndex = gameState[currentMode].index;
 
-// 1. O BANCO DE DADOS (Cenários)
-// Aqui simulamos o arquivo JSON mencionado no Roteiro (Mês 1 - Semana 2)
-const emailDatabase = [
-    {
-        id: 1,
-        senderName: "Suporte TI",
-        senderEmail: "ti@honc0rd.com.br", // Domínio falso sutil
-        subject: "URGENTE: Atualização de Segurança Necessária",
-        body: "Prezado colaborador,\n\nIdentificamos uma vulnerabilidade no seu pacote Office. Para evitar o bloqueio da sua conta até o final do dia, solicitamos que baixe a atualização no link abaixo imediatamente:\n\n[Clique aqui para atualizar agora]\n\nAtenciosamente,\nEquipe de Suporte",
-        isPhishing: true,
-        trapElementId: "email-sender-address", // Qual elemento destacar no erro
-        feedbackSuccess: "Excelente! Você notou o senso de urgência falso e o domínio de e-mail estranho. A TI nunca ameaça bloquear contas imediatamente por e-mail.",
-        feedbackError: "Você caiu num golpe! Repare no e-mail do remetente. O nome diz 'Suporte TI', mas o domínio é 'honc0rd.com.br' e não o nosso domínio oficial.",
-        tip: "Golpistas usam gatilhos de urgência (ex: 'sua conta será bloqueada hoje') para forçar você a clicar sem pensar. Sempre confira o endereço de e-mail exato."
-    },
-    {
-        id: 2,
-        senderName: "Recursos Humanos",
-        senderEmail: "rh@honcord.com.br", // Domínio correto
-        subject: "Lembrete: Feriado Nacional e Ponto Eletrônico",
-        body: "Olá equipe,\n\nLembramos a todos que no próximo feriado nacional (quinta-feira), o registro de ponto eletrônico será suspenso para aqueles que não estiverem em escala de plantão.\n\nDúvidas, por favor, abram um chamado em nosso portal interno.\n\nBom trabalho,\nGestão de Pessoas",
-        isPhishing: false,
-        trapElementId: null,
-        feedbackSuccess: "Muito bem. Este é um e-mail corporativo legítimo. Remetente correto, sem links suspeitos e sem pedidos de senhas.",
-        feedbackError: "Ops! Você reportou um e-mail legítimo da nossa empresa. Analise com calma: o domínio do remetente estava correto e não havia links ou pedidos estranhos.",
-        tip: "Nem todo e-mail é um ataque. É importante bloquear ameaças, mas não podemos paralisar a comunicação interna da empresa."
-    },
-    {
-        id: 3,
-        senderName: "Wetransfer | Envio de Arquivos",
-        senderEmail: "noreply@wetransfeer.com", // Erro de digitação sutil (wetransfeer)
-        subject: "Maria Diretoria te enviou um arquivo",
-        body: "Olá,\n\nMaria (Diretoria) enviou 1 arquivo para você via WeTransfer.\n\nArquivo: Relatorio_Demissões_Q3.pdf\nTamanho: 2.4 MB\n\n[Baixar Arquivo]\n\nO link expira em 2 dias.",
-        isPhishing: true,
-        trapElementId: "email-sender-address",
-        feedbackSuccess: "Ótima análise! Você percebeu a isca da curiosidade (demissões) e o erro de digitação no domínio ('wetransfeer' com dois 'e').",
-        feedbackError: "Cuidado! Os golpistas usaram a tática da 'Curiosidade'. O assunto era fofoca corporativa, e o e-mail do remetente era falso (WeTransfeer com dois E).",
-        tip: "Nomes de grandes marcas frequentemente são falsificados com erros de digitação sutis. Além disso, desconfie de arquivos que apelam para fofocas ou informações confidenciais."
+    const unreadEl = document.getElementById('unread-count');
+    if (unreadEl && currentMode === 'email') {
+        unreadEl.innerText = activeScenarios.length - currentIndex;
     }
-];
 
-// Variáveis de Estado do Jogo
-let currentEmailIndex = 0;
-let score = { correct: 0, wrong: 0 };
-let gameActive = true;
+    activeScenarios.forEach((scenario, idx) => {
+        if (idx < currentIndex) return;
 
-// Elementos da UI
-const emailListContainer = document.getElementById('email-list-container');
-const emptyState = document.getElementById('empty-state');
-const readingPane = document.getElementById('reading-pane');
-const unreadCount = document.getElementById('unread-count');
-const scoreDisplay = document.getElementById('score-display');
-
-function initGame() {
-    renderEmailList();
-    updateScoreDisplay();
-}
-
-function renderEmailList() {
-    emailListContainer.innerHTML = '';
-    unreadCount.innerText = emailDatabase.length - currentEmailIndex;
-
-    emailDatabase.forEach((email, index) => {
-        // Só mostra os emails que ainda não foram "resolvidos" ou o atual
-        if (index < currentEmailIndex) return;
-
-        const isActive = index === currentEmailIndex;
-        const isResolved = index < currentEmailIndex;
-
+        const isActive = idx === currentIndex;
         const div = document.createElement('div');
         div.className = `p-4 border-b border-gray-100 cursor-pointer transition-colors ${isActive ? 'bg-brand-bg border-l-4 border-l-brand-primary' : 'hover:bg-gray-50'}`;
 
-        // Se for o primeiro da lista (o atual), o clique não faz nada (já está selecionado).
-        // Se for futuro, não deixa clicar ainda para forçar a ordem.
-
         div.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="font-bold text-sm ${isActive ? 'text-brand-darkest' : 'text-gray-600'}">${email.senderName}</span>
-                        <span class="text-xs text-gray-400">10:00</span>
-                    </div>
-                    <div class="text-sm font-medium ${isActive ? 'text-brand-primaryDark' : 'text-gray-800'} truncate mb-1">${email.subject}</div>
-                    <div class="text-xs text-gray-500 truncate">Clique para visualizar e analisar...</div>
-                `;
-        emailListContainer.appendChild(div);
+            <div class="flex justify-between items-start mb-1">
+                <span class="font-bold text-sm ${isActive ? 'text-brand-darkest' : 'text-gray-600'}">${scenario.senderName}</span>
+                <span class="text-xs text-gray-400">Agora</span>
+            </div>
+            <div class="text-sm font-medium ${isActive ? 'text-brand-primaryDark' : 'text-gray-800'} truncate mb-1">${scenario.subject}</div>
+            <div class="text-xs text-gray-500 truncate">Clique para analisar...</div>
+        `;
+        listContainer.appendChild(div);
     });
 
-    // Carrega o e-mail atual no painel de leitura
-    if (currentEmailIndex < emailDatabase.length) {
-        loadEmail(emailDatabase[currentEmailIndex]);
+    if (currentIndex < activeScenarios.length) {
+        loadScenario(activeScenarios[currentIndex]);
     } else {
         showCompletionScreen();
     }
 }
 
-function loadEmail(email) {
-    emptyState.classList.add('hidden');
-    readingPane.classList.remove('hidden');
-    readingPane.classList.add('flex');
+function loadScenario(scenario) {
+    document.getElementById('empty-state')?.classList.add('hidden');
 
-    document.getElementById('email-subject').innerText = email.subject;
-    document.getElementById('email-sender-name').innerText = email.senderName;
-    document.getElementById('email-sender-address').innerText = `<${email.senderEmail}>`;
-    document.getElementById('email-avatar').innerText = email.senderName.charAt(0).toUpperCase();
+    if (currentMode === 'chat') {
+        document.getElementById('chat-pane')?.classList.remove('hidden');
+        document.getElementById('chat-pane')?.classList.add('flex');
 
-    // Formatando o corpo do texto (transformando [Links] em botões azuis visuais para o jogo)
-    let formattedBody = email.body.replace(/\[(.*?)\]/g, '<span class="inline-block px-4 py-2 mt-4 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 pointer-events-none">$1</span>');
-    document.getElementById('email-body').innerHTML = formattedBody;
+        document.getElementById('chat-sender-name').innerText = scenario.senderName;
+        document.getElementById('chat-avatar').innerText = scenario.senderName.charAt(0).toUpperCase();
 
-    // Remove destaques de erro anteriores
-    document.getElementById('email-sender-address').classList.remove('highlight-error');
-    document.getElementById('email-subject').classList.remove('highlight-error');
+        const chatContainer = document.getElementById('chat-message-container');
+        if (chatContainer) {
+            chatContainer.innerHTML = '';
+            scenario.messages.forEach((msg, index) => {
+                setTimeout(() => {
+                    const bubble = document.createElement('div');
+                    bubble.className = msg.type === 'system' ? 'chat-system' : 'chat-bubble chat-received';
+                    bubble.innerHTML = msg.text;
+                    chatContainer.appendChild(bubble);
+                }, index * 400);
+            });
+        }
+    } else {
+        document.getElementById('reading-pane')?.classList.remove('hidden');
+        document.getElementById('reading-pane')?.classList.add('flex');
+
+        document.getElementById('email-subject').innerText = scenario.subject;
+        document.getElementById('email-sender-name').innerText = scenario.senderName;
+        document.getElementById('email-sender-address').innerText = `<${scenario.senderEmail}>`;
+        document.getElementById('email-avatar').innerText = scenario.senderName.charAt(0).toUpperCase();
+
+        const emailBody = document.getElementById('email-body');
+        if (emailBody) {
+            let formattedBody = scenario.body.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+            formattedBody = formattedBody.replace(/\[(.*?)\]/g, '<br><span class="inline-block px-4 py-2 mt-4 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700 pointer-events-none">$1</span>');
+
+            emailBody.innerHTML = formattedBody;
+        }
+    }
 }
 
+// ==========================================
+// 3. MOTOR DE DECISÃO E FEEDBACK
+// ==========================================
 function handleDecision(userChoice) {
     if (!gameActive) return;
 
-    const currentEmail = emailDatabase[currentEmailIndex];
+    const currentIndex = gameState[currentMode].index;
+    const currentScenario = activeScenarios[currentIndex];
 
-    // Verifica se o usuário acertou
-    // 'ameaca' significa que o usuário reportou phishing.
-    // 'seguro' significa que o usuário aprovou.
-    const isCorrect = (userChoice === 'ameaca' && currentEmail.isPhishing) ||
-        (userChoice === 'seguro' && !currentEmail.isPhishing);
+    const isCorrect = (userChoice === 'ameaca' && currentScenario.isPhishing) ||
+        (userChoice === 'seguro' && !currentScenario.isPhishing);
 
     if (isCorrect) {
-        score.correct++;
-        showFeedback(true, currentEmail);
+        gameState[currentMode].correct++;
+        showFeedback(true, currentScenario);
     } else {
-        score.wrong++;
-        showFeedback(false, currentEmail);
+        gameState[currentMode].wrong++;
+        showFeedback(false, currentScenario);
 
-        // Aplica o destaque visual no erro no painel de fundo (se houver um trapElementId)
-        if (currentEmail.trapElementId) {
-            document.getElementById(currentEmail.trapElementId).classList.add('highlight-error');
+        if (currentScenario.trapElementId) {
+            document.getElementById(currentScenario.trapElementId)?.classList.add('highlight-error');
         }
     }
 
+    saveProgress();
     updateScoreDisplay();
 }
 
-function showFeedback(isCorrect, email) {
-    gameActive = false; // Pausa o jogo
+function showFeedback(isCorrect, scenario) {
+    gameActive = false;
 
     const modal = document.getElementById('feedback-modal');
     const contentBox = document.getElementById('feedback-content-box');
@@ -174,70 +220,148 @@ function showFeedback(isCorrect, email) {
     const message = document.getElementById('feedback-message');
     const tip = document.getElementById('feedback-tip');
 
-    modal.classList.remove('hidden');
+    if (modal) modal.classList.remove('hidden');
 
-    // Força um reflow para a animação CSS funcionar
-    void contentBox.offsetWidth;
-    contentBox.classList.add('animate-fade-in');
-    contentBox.style.opacity = '1';
-    contentBox.style.transform = 'translateY(0) scale(1)';
-
-    if (isCorrect) {
-        header.className = 'px-6 py-4 flex items-center gap-3 bg-green-50 text-green-800 border-b border-green-100';
-        icon.className = 'fa-solid fa-circle-check text-2xl text-green-600';
-        title.innerText = 'Excelente Análise!';
-        message.innerText = email.feedbackSuccess;
-    } else {
-        header.className = 'px-6 py-4 flex items-center gap-3 bg-red-50 text-red-800 border-b border-red-100';
-        icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
-        title.innerText = 'Atenção! Ameaça não detectada.';
-        message.innerText = email.feedbackError;
+    if (contentBox) {
+        void contentBox.offsetWidth;
+        contentBox.classList.add('animate-fade-in');
+        contentBox.style.opacity = '1';
+        contentBox.style.transform = 'translateY(0) scale(1)';
     }
 
-    tip.innerText = email.tip;
+    if (isCorrect) {
+        if (header) header.className = 'px-6 py-4 flex items-center gap-3 bg-green-50 text-green-800 border-b border-green-100';
+        if (icon) icon.className = 'fa-solid fa-circle-check text-2xl text-green-600';
+        if (title) title.innerText = 'Excelente Análise!';
+        if (message) message.innerText = scenario.feedbackSuccess;
+    } else {
+        if (header) header.className = 'px-6 py-4 flex items-center gap-3 bg-red-50 text-red-800 border-b border-red-100';
+        if (icon) icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
+        if (title) title.innerText = 'Atenção! Ameaça não detectada.';
+        if (message) message.innerText = scenario.feedbackError;
+    }
+
+    if (tip) tip.innerText = scenario.tip;
 }
 
-// Avança para o próximo cenário
-function nextEmail() {
-    const modal = document.getElementById('feedback-modal');
-    modal.classList.add('hidden');
-
-    // Reset animação
+function nextScenario() {
+    document.getElementById('feedback-modal')?.classList.add('hidden');
     const contentBox = document.getElementById('feedback-content-box');
-    contentBox.style.opacity = '0';
-    contentBox.classList.remove('animate-fade-in');
+    if (contentBox) {
+        contentBox.style.opacity = '0';
+        contentBox.classList.remove('animate-fade-in');
+    }
 
-    currentEmailIndex++;
+    document.querySelectorAll('.highlight-error').forEach(el => {
+        el.classList.remove('highlight-error');
+    });
+
+    gameState[currentMode].index++;
     gameActive = true;
-    renderEmailList();
+    saveProgress();
+    renderScenarioList();
 }
 
 function updateScoreDisplay() {
-    const totalPlayed = score.correct + score.wrong;
-    scoreDisplay.innerText = `Progresso: ${totalPlayed}/${emailDatabase.length}`;
+    const correct = gameState[currentMode].correct;
+    const wrong = gameState[currentMode].wrong;
+    const totalPlayed = correct + wrong;
+
+    const display = document.getElementById('score-display');
+    if (display) display.innerText = `Progresso: ${totalPlayed}/${activeScenarios.length}`;
 }
 
+// ==========================================
+// 4. TELA FINAL E GRÁFICOS (CHART.JS)
+// ==========================================
 function showCompletionScreen() {
-    emptyState.classList.add('hidden');
-    readingPane.classList.add('hidden');
-    readingPane.classList.remove('flex');
+    // 1. Esconde as telas de jogo ativas
+    document.getElementById('empty-state')?.classList.add('hidden');
 
+    const readingPane = document.getElementById('reading-pane');
+    if (readingPane) { readingPane.classList.add('hidden'); readingPane.classList.remove('flex'); }
+
+    const chatPane = document.getElementById('chat-pane');
+    if (chatPane) { chatPane.classList.add('hidden'); chatPane.classList.remove('flex'); }
+
+    // 2. Mostra a tela de conclusão
     const completionScreen = document.getElementById('completion-screen');
-    completionScreen.classList.remove('hidden');
-    completionScreen.classList.add('flex');
+    if (completionScreen) {
+        completionScreen.classList.remove('hidden');
+        completionScreen.classList.add('flex');
+    }
 
-    document.getElementById('final-correct').innerText = score.correct;
-    document.getElementById('final-wrong').innerText = score.wrong;
+    // 3. Atualiza os números
+    const correct = gameState[currentMode].correct;
+    const wrong = gameState[currentMode].wrong;
 
-    const percentage = Math.round((score.correct / emailDatabase.length) * 100);
-    const percentDisplay = document.getElementById('final-score-percent');
-    percentDisplay.innerText = `${percentage}%`;
+    const finalCorrect = document.getElementById('final-correct');
+    if (finalCorrect) finalCorrect.innerText = correct;
 
-    // Muda a cor da porcentagem baseado no resultado
-    if (percentage === 100) percentDisplay.className = 'text-5xl font-bold text-green-600 mb-2';
-    else if (percentage >= 60) percentDisplay.className = 'text-5xl font-bold text-yellow-500 mb-2';
-    else percentDisplay.className = 'text-5xl font-bold text-brand-primaryDark mb-2';
+    const finalWrong = document.getElementById('final-wrong');
+    if (finalWrong) finalWrong.innerText = wrong;
+
+    // 4. Calcula e desenha a Porcentagem e o Gráfico
+    if (activeScenarios.length > 0) {
+        const percentage = Math.round((correct / activeScenarios.length) * 100);
+        const percentDisplay = document.getElementById('final-score-percent');
+
+        if (percentDisplay) {
+            percentDisplay.innerText = `${percentage}%`;
+            if (percentage === 100) percentDisplay.className = 'text-5xl font-bold text-green-600 mb-2';
+            else if (percentage >= 60) percentDisplay.className = 'text-5xl font-bold text-yellow-500 mb-2';
+            else percentDisplay.className = 'text-5xl font-bold text-brand-primaryDark mb-2';
+        }
+
+        // --- RENDERIZA O GRÁFICO SE A BIBLIOTECA CHART.JS EXISTIR ---
+        if (typeof Chart !== 'undefined') {
+            const ctx = document.getElementById('performanceChart');
+            if (ctx) {
+                // Destrói gráfico antigo se o usuário clicar em "Refazer"
+                if (chartInstance) { chartInstance.destroy(); }
+
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Análises Corretas', 'Vulnerabilidades'],
+                        datasets: [{
+                            data: [correct, wrong],
+                            backgroundColor: ['#16a34a', '#D83F3C'], // Verde e Vermelho
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        cutout: '70%'
+                    }
+                });
+            }
+        }
+    }
 }
 
-// Inicia o jogo quando a janela carrega
+function checkTutorial() {
+    // Verifica se a chave 'tutorialSeen' NÃO existe na memória
+    if (!localStorage.getItem('tutorialSeen')) {
+        const modal = document.getElementById('tutorial-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+}
+
+function closeTutorial() {
+    // Grava na memória que o usuário já viu o tutorial
+    localStorage.setItem('tutorialSeen', 'true');
+    const modal = document.getElementById('tutorial-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
 window.onload = initGame;

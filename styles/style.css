@@ -54,3 +54,67 @@
             border-radius: 4px;
             padding: 2px;
         }
+
+        /* Estilo Base da Bolha */
+        .chat-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            animation: fadeInBubble 0.4s ease-out forwards;
+        }
+
+        /* Mensagem Recebida (Branca, alinhada à esquerda) */
+        .chat-received {
+            background-color: #ffffff;
+            color: #3a2b2a;
+            /* brand-darkest */
+            border: 1px solid #e5e7eb;
+            border-radius: 12px 12px 12px 2px;
+            align-self: flex-start;
+        }
+
+        /* Mensagem do Sistema (Avisos centralizados) */
+        .chat-system {
+            background-color: #e5e7eb;
+            color: #887270;
+            /* brand-neutral */
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 12px;
+            margin: 8px auto;
+            max-width: 60%;
+        }
+
+        /* Link dentro do chat */
+        .chat-link {
+            color: #00638D;
+            /* brand-tertiary */
+            text-decoration: underline;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* Animação suave para as mensagens surgirem */
+        @keyframes fadeInBubble {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Classes ativas para a barra lateral */
+        .tab-active {
+            background-color: #fcf5f5 !important;
+            border-right-color: #D83F3C !important;
+            color: #9A1B1B !important;
+        }

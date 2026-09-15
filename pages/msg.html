@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador - Caixa de Entrada</title>
+    <title>Simulador - Mensagens Diretas</title>
 
     <link rel="icon" type="image/x-icon" href="../img/icon/cyber-crime-_1__1.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,14 +23,9 @@
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         brand: {
-                            primary: '#D83F3C',
-                            primaryDark: '#9A1B1B',
-                            secondary: '#B85C55',
-                            tertiary: '#00638D',
-                            neutral: '#887270',
-                            darkest: '#3a2b2a',
-                            bg: '#fcf5f5',
-                            panel: '#ffffff'
+                            primary: '#D83F3C', primaryDark: '#9A1B1B', secondary: '#B85C55',
+                            tertiary: '#00638D', neutral: '#887270', darkest: '#3a2b2a',
+                            bg: '#fcf5f5', panel: '#ffffff'
                         }
                     }
                 }
@@ -62,9 +57,8 @@
         <aside class="w-64 bg-brand-panel border-r border-gray-200 flex flex-col pt-4">
             <div class="px-6 mb-6">
                 <button
-                    class="w-full bg-brand-primary text-white font-medium py-2 px-4 rounded shadow hover:bg-brand-primaryDark transition-colors">
-                    Nova Mensagem
-                </button>
+                    class="w-full bg-brand-primary text-white font-medium py-2 px-4 rounded shadow hover:bg-brand-primaryDark transition-colors">Nova
+                    Mensagem</button>
             </div>
             <nav class="flex-1">
                 <ul class="space-y-1">
@@ -99,51 +93,49 @@
             <div id="scenario-list-container" class="flex-1 overflow-y-auto custom-scrollbar"></div>
         </section>
 
-        <!-- Painel Central -->
-        <section class="flex-1 bg-white flex flex-col relative">
-
+        <!-- Painel Central de Chat -->
+        <section class="flex-1 bg-brand-bg flex flex-col relative">
             <div id="empty-state"
                 class="absolute inset-0 flex flex-col items-center justify-center text-brand-neutral bg-brand-bg z-20">
-                <i class="fa-regular fa-envelope-open text-6xl mb-4 text-gray-300"></i>
-                <h2 class="text-xl font-medium">Selecione uma mensagem para analisar</h2>
+                <i class="fa-brands fa-rocketchat text-6xl mb-4 text-gray-300"></i>
+                <h2 class="text-xl font-medium">Selecione uma conversa para analisar</h2>
             </div>
 
-            <!-- Painel de E-mail -->
-            <div id="reading-pane" class="hidden flex-col h-full">
-                <div class="h-16 border-b border-gray-200 flex items-center justify-between px-8 bg-gray-50">
-                    <div class="text-sm font-medium text-brand-neutral">Análise de Segurança Requerida</div>
-                    <div class="flex gap-3">
-                        <button onclick="handleDecision('seguro')"
-                            class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 hover:text-green-600 transition-colors">
-                            <i class="fa-solid fa-check text-green-500"></i> É Seguro
-                        </button>
-                        <button onclick="handleDecision('ameaca')"
-                            class="flex items-center gap-2 px-4 py-2 bg-brand-primaryDark text-white font-medium rounded hover:bg-red-800 transition-colors">
-                            <i class="fa-solid fa-flag"></i> Reportar Phishing
-                        </button>
-                    </div>
-                </div>
-
-                <div class="px-8 py-6 border-b border-gray-100">
-                    <h2 id="email-subject" class="text-2xl font-semibold text-brand-darkest mb-4">Assunto</h2>
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-full bg-brand-secondary text-white flex items-center justify-center font-bold text-lg"
-                            id="email-avatar">A</div>
-                        <div class="flex-1">
-                            <div class="flex items-baseline gap-2">
-                                <span id="email-sender-name" class="font-bold text-brand-darkest">Nome</span>
-                                <span id="email-sender-address" class="text-sm text-brand-neutral">&lt;email&gt;</span>
-                            </div>
-                            <div class="text-xs text-gray-400 mt-0.5">Para: mim</div>
+            <!-- Painel de Chat -->
+            <div id="chat-pane" class="hidden flex-col h-full flex-1">
+                <div class="h-16 border-b border-gray-200 flex items-center px-8 bg-white shadow-sm z-10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-brand-tertiary text-white flex items-center justify-center font-bold text-lg"
+                            id="chat-avatar">C</div>
+                        <div>
+                            <h2 id="chat-sender-name" class="font-bold text-brand-darkest leading-tight">Nome do Colega
+                            </h2>
+                            <span class="text-xs text-green-600 font-medium">● Online</span>
                         </div>
                     </div>
                 </div>
-                <div id="email-body"
-                    class="p-8 text-brand-darkest text-sm leading-relaxed overflow-y-auto custom-scrollbar flex-1 whitespace-pre-wrap">
+
+                <div id="chat-message-container"
+                    class="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+                    <!-- Bolhas injetadas via JS -->
+                </div>
+
+                <div class="p-4 bg-white border-t border-gray-200 flex items-center justify-between px-8">
+                    <div class="text-sm font-medium text-brand-neutral">Como você reage a esta mensagem?</div>
+                    <div class="flex gap-3">
+                        <button onclick="handleDecision('seguro')"
+                            class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded shadow-sm hover:bg-gray-50 hover:text-green-600 transition-colors">
+                            <i class="fa-solid fa-reply text-green-500"></i> Responder
+                        </button>
+                        <button onclick="handleDecision('ameaca')"
+                            class="flex items-center gap-2 px-4 py-2 bg-brand-primaryDark text-white font-medium rounded shadow hover:bg-red-800 transition-colors">
+                            <i class="fa-solid fa-ban"></i> Bloquear Usuário
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Modal de Feedback -->
+            <!-- Modais Compartilhados -->
             <div id="feedback-modal"
                 class="absolute inset-0 bg-black/60 z-30 hidden flex items-center justify-center backdrop-blur-sm">
                 <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full p-0 overflow-hidden transform scale-95 opacity-0 transition-all duration-300"
@@ -162,14 +154,12 @@
                     </div>
                     <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
                         <button onclick="nextScenario()"
-                            class="px-6 py-2 bg-brand-primaryDark text-white font-medium rounded shadow hover:bg-brand-primary transition-colors">
-                            Continuar Treinamento
-                        </button>
+                            class="px-6 py-2 bg-brand-primaryDark text-white font-medium rounded shadow hover:bg-brand-primary transition-colors">Continuar
+                            Treinamento</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Tela de Conclusão -->
             <div id="completion-screen"
                 class="absolute inset-0 bg-brand-bg z-40 hidden flex-col items-center justify-center p-8 text-center">
                 <div
@@ -177,7 +167,6 @@
                     <i class="fa-solid fa-award text-5xl text-brand-tertiary"></i>
                 </div>
                 <h2 class="text-3xl font-bold text-brand-darkest mb-2">Simulação Concluída!</h2>
-
                 <div class="bg-white p-6 rounded-lg shadow-md w-full max-w-2xl mb-8 mt-4 flex gap-8 items-center">
                     <div class="flex-1 text-center border-r border-gray-100 pr-8">
                         <div class="text-5xl font-bold text-brand-primaryDark mb-2" id="final-score-percent">0%</div>
@@ -194,13 +183,54 @@
                         <canvas id="performanceChart"></canvas>
                     </div>
                 </div>
-
                 <button onclick="restartGame()"
-                    class="px-8 py-3 bg-brand-primaryDark text-white font-bold rounded shadow-lg hover:-translate-y-1 transition-transform">
-                    Refazer Treinamento
-                </button>
+                    class="px-8 py-3 bg-brand-primaryDark text-white font-bold rounded shadow-lg hover:-translate-y-1 transition-transform">Refazer
+                    Treinamento</button>
             </div>
 
+            <div id="tutorial-modal"
+                class="absolute inset-0 bg-black/70 z-50 hidden flex-col items-center justify-center backdrop-blur-sm p-4">
+                <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full p-8 relative">
+                    <div class="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4">
+                        <div
+                            class="w-12 h-12 bg-brand-tertiary text-white rounded-full flex items-center justify-center text-2xl shadow-inner">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-brand-darkest">Bem-vindo ao Simulador de Segurança</h2>
+                    </div>
+
+                    <div class="space-y-4 text-gray-700 text-sm leading-relaxed mb-8">
+                        <p>
+                            <strong class="text-brand-primaryDark text-base">O que é Phishing?</strong><br>
+                            É a tática mais usada por cibercriminosos. Eles se passam por gestores, colegas (como a
+                            Diretoria Médica ou o DP) ou sistemas (como o TASY) para enganar você e roubar senhas.
+                        </p>
+                        <p>
+                            <strong class="text-brand-primaryDark text-base">Os Riscos:</strong><br>
+                            Um único clique errado pode causar o vazamento de dados de pacientes, bloqueio total do
+                            hospital (Ransomware) e prejuízos incalculáveis para a Honcord.
+                        </p>
+                        <div class="bg-brand-bg p-4 rounded border border-gray-200 mt-4">
+                            <strong class="text-brand-darkest block mb-2">Como jogar?</strong>
+                            <ul class="list-disc ml-5 space-y-1">
+                                <li>Analise o <strong>Remetente</strong>, o <strong>Assunto</strong> e as urgências do
+                                    texto.</li>
+                                <li>Se achar que é um golpe, clique em <span
+                                        class="bg-brand-primaryDark text-white px-2 py-0.5 rounded text-xs font-bold"><i
+                                            class="fa-solid fa-flag"></i> Reportar Phishing</span>.</li>
+                                <li>Se for uma mensagem inofensiva da rotina, clique em <span
+                                        class="bg-white border border-gray-300 text-green-600 px-2 py-0.5 rounded text-xs font-bold"><i
+                                            class="fa-solid fa-check"></i> É Seguro</span>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <button onclick="closeTutorial()"
+                        class="w-full py-3 bg-brand-tertiary text-white font-bold rounded shadow hover:bg-opacity-90 transition-colors text-lg">
+                        Entendi, iniciar simulação!
+                    </button>
+                </div>
+            </div>
         </section>
     </main>
     <div id="tutorial-modal"
